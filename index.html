@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevOps Cloud Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; margin: 0; padding: 40px; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { color: #232f3e; margin-top: 0; }
+        .status-badge { background: #2ecc71; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .tool-item { border-bottom: 1px solid #eee; padding: 12px 0; display: flex; justify-content: space-between; align-items: center; }
+        .tool-item:last-child { border-bottom: none; }
+        .error { color: #e74c3c; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Cloud Deploy Dashboard</h1>
+        <p>Status: <span class="status-badge">Connected to ECS Fargate</span></p>
+        <hr>
+        <h3>Fetched DevOps Infrastructure Stack:</h3>
+        <div id="tools-list">Loading real-time cloud data...</div>
+    </div>
+
+    <script>
+        // CRITICAL DEVOPS CONFIGURATION:
+        // Replace 'localhost:5000' with your actual AWS Application Load Balancer DNS name once deployed!
+        const BACKEND_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:5000' 
+            : `http://${window.location.hostname}/api`; // Assumes path-based routing on ALB
+
+        async function fetchCloudData() {
+            try {
+                // If using a simple distinct endpoint setup, use your backend's direct URL or domain:
+                const response = await fetch(`${BACKEND_URL}/tools`);
+                const data = await response.json();
+                
+                let html = '';
+                data.forEach(tool => {
+                    html += `
+                        <div class="tool-item">
+                            <div>
+                                <strong>${tool.name}</strong> <br>
+                                <small style="color: #7f8c8d;">${tool.type}</small>
+                            </div>
+                            <span class="status-badge">${tool.status}</span>
+                        </div>
+                    `;
+                });
+                document.getElementById('tools-list').innerHTML = html;
+            } catch (error) {
+                document.getElementById('tools-list').innerHTML = `<p class="error">Error connecting to Backend API: ${error.message}</p>`;
+            }
+        }
+
+        fetchCloudData();
+    </script>
+</body>
+</html>
