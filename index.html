@@ -5,56 +5,134 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DevOps Cloud Dashboard</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; margin: 0; padding: 40px; }
-        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        h1 { color: #232f3e; margin-top: 0; }
-        .status-badge { background: #2ecc71; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
-        .tool-item { border-bottom: 1px solid #eee; padding: 12px 0; display: flex; justify-content: space-between; align-items: center; }
-        .tool-item:last-child { border-bottom: none; }
-        .error { color: #e74c3c; font-weight: bold; }
+        body { 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+            background-color: #f0f2f5; 
+            margin: 0; 
+            padding: 20px;
+            color: #1a1f26;
+        }
+        .container { 
+            max-width: 700px; 
+            margin: 40px auto; 
+            background: #ffffff; 
+            padding: 35px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); 
+        }
+        h1 { 
+            color: #232f3e; 
+            margin-top: 0; 
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .status-badge { 
+            padding: 6px 12px; 
+            border-radius: 20px; 
+            font-size: 13px; 
+            font-weight: 600;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+        /* Dynamic Status Colors */
+        .status-checking { background: #e2e8f0; color: #475569; }
+        .status-connected { background: #e1f7ec; color: #10b981; }
+        .status-disconnected { background: #fef2f2; color: #dc2626; }
+        
+        h3 {
+            color: #4b5563;
+            font-size: 16px;
+            margin-top: 25px;
+            text-transform: uppercase;
+        }
+        .tools-grid { display: grid; gap: 15px; margin-top: 15px; }
+        .tool-item { 
+            background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px 20px; 
+            border-radius: 8px; display: flex; justify-content: space-between; align-items: center; 
+        }
+        .tool-name { font-size: 16px; font-weight: 600; color: #1e293b; }
+        .tool-type { color: #64748b; font-size: 13px; margin-top: 2px; display: block; }
+        .error-panel { 
+            background: #fef2f2; border-left: 4px solid #dc2626; padding: 15px; border-radius: 6px; 
+        }
+        code { background: #eaedf1; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Cloud Deploy Dashboard</h1>
-        <p>Status: <span class="status-badge">Connected to ECS Fargate</span></p>
-        <hr>
-        <h3>Fetched DevOps Infrastructure Stack:</h3>
-        <div id="tools-list">Loading real-time cloud data...</div>
+        
+        <p>System Status: <span id="connection-status" class="status-badge status-checking">Checking Connection...</span></p>
+        
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 25px 0;">
+        <h3>Fetched DevOps Infrastructure Stack</h3>
+        <div id="tools-list" class="tools-grid">Awaiting response from AWS ALB...</div>
     </div>
 
     <script>
-        // CRITICAL DEVOPS CONFIGURATION:
-        // Replace 'localhost:5000' with your actual AWS Application Load Balancer DNS name once deployed!
-        const BACKEND_URL = window.location.hostname === 'localhost' 
-            ? 'http://localhost:5000' 
-            : `http://${window.location.hostname}/api`; // Assumes path-based routing on ALB
+        let BACKEND_URL;
+
+        if (window.location.hostname === 'localhost') {
+            BACKEND_URL = 'http://localhost:5000/api';
+        } else {
+            BACKEND_URL = 'http://my-backend-lb-945615430.ap-south-1.elb.amazonaws.com/api';
+        }
 
         async function fetchCloudData() {
+            const statusBadge = document.getElementById('connection-status');
+            const toolsList = document.getElementById('tools-list');
+
             try {
-                // If using a simple distinct endpoint setup, use your backend's direct URL or domain:
-                const response = await fetch(`${BACKEND_URL}/tools`);
+                // Attempting the real network call to your AWS Load Balancer
+                const response = await fetch(`${BACKEND_URL}/tools`, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: Target Unreachable`);
+                }
+                
                 const data = await response.json();
+                
+                // TRUE REAL-TIME SUCCESS: Update the badge to Green
+                statusBadge.textContent = "Connected to ECS Fargate";
+                statusBadge.className = "status-badge status-connected";
                 
                 let html = '';
                 data.forEach(tool => {
                     html += `
                         <div class="tool-item">
                             <div>
-                                <strong>${tool.name}</strong> <br>
-                                <small style="color: #7f8c8d;">${tool.type}</small>
+                                <span class="tool-name">${tool.name}</span>
+                                <span class="tool-type">${tool.type}</span>
                             </div>
-                            <span class="status-badge">${tool.status}</span>
+                            <span class="status-badge status-connected">${tool.status}</span>
                         </div>
                     `;
                 });
-                document.getElementById('tools-list').innerHTML = html;
+                toolsList.innerHTML = html;
+
             } catch (error) {
-                document.getElementById('tools-list').innerHTML = `<p class="error">Error connecting to Backend API: ${error.message}</p>`;
+                // TRUE REAL-TIME FAILURE: Update the badge to Red
+                statusBadge.textContent = "Disconnected - API Down";
+                statusBadge.className = "status-badge status-disconnected";
+                
+                toolsList.innerHTML = `
+                    <div class="error-panel">
+                        <p style="margin-top:0; color:#dc2626; font-weight:bold;">CRITICAL: Backend Connection Failed</p>
+                        <p><strong>Attempted Target:</strong> <code>${BACKEND_URL}/tools</code></p>
+                        <p><strong>Error Details:</strong> ${error.message}</p>
+                        <p style="font-size: 13px; color: #64748b;">The ECS container is either stopped, the Load Balancer routing is broken, or a security group is blocking port 5000.</p>
+                    </div>`;
             }
         }
 
+        // Run the fetch command as soon as the page loads
         fetchCloudData();
+        
+        // Optional DevOps Pro-Move: Auto-refresh the connection every 10 seconds to constantly monitor uptime
+        setInterval(fetchCloudData, 10000); 
     </script>
 </body>
 </html>
